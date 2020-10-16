@@ -15,70 +15,72 @@ import java.util.Stack;
 import java.util.ArrayList;
 
 public class TypeCheckVisitor extends NodeVisitor {
-     
-     private TyInt tyInt = new TyInt();
-     private TyFloat tyFloat = new TyFloat();
-     private TyBool tyBool = new TyBool();
-     private TyErr tyErr = new TyErr();
-     private TyChar tyChar = new TyChar();
-     private TyVoid tyVoid = new TyVoid();
 
-     private ArrayList<String> logError;
-     
-     private TyEnv<LocalEnv<SType>> env;
-     private LocalEnv<SType> temp;
-     
-     private Stack<SType> stk;
-     private boolean retChk;
-     
-     public TypeCheckVisitor(){
-         stk = new Stack<SType>();
-         env = new TyEnv<LocalEnv<SType>>();
-         logError = new ArrayList<String>();
-     }
-     
-     public int getNumErrors(){ return logError.size(); }
-     
-     public void printErrors(){ 
-          for(String s : logError){
-              System.out.println(s);
-          }
-     }
+    private TyInt tyInt = new TyInt();
+    private TyFloat tyFloat = new TyFloat();
+    private TyBool tyBool = new TyBool();
+    private TyErr tyErr = new TyErr();
+    private TyChar tyChar = new TyChar();
+    private TyVoid tyVoid = new TyVoid();
+
+    private ArrayList<String> logError;
+
+    private TyEnv<LocalEnv<SType>> env;
+    private LocalEnv<SType> temp;
+
+    private Stack<SType> stk;
+    private boolean retChk;
+
+    public TypeCheckVisitor() {
+        stk = new Stack<SType>();
+        env = new TyEnv<LocalEnv<SType>>();
+        logError = new ArrayList<String>();
+    }
+
+    public int getNumErrors() {
+        return logError.size();
+    }
+
+    public void printErrors() {
+        for (String s : logError) {
+            System.out.println(s);
+        }
+    }
 
     @Override
     public void visit(Program d) {
-        for(Func f : d.getFuncList()){
+        for (Func f : d.getFuncList()) {
             TyFun ty;
             SType[] vetor_parametros = new SType[f.getParams().length];
             SType[] vetor_retornos = new SType[f.getReturns().length];
 
-            for(int i = 0; i < f.getParams().length; i++ ){
+            for (int i = 0; i < f.getParams().length; i++) {
                 f.getParams()[i].getFirst().accept(this);
                 vetor_parametros[i] = stk.pop();
             }
-            for(int i = 0; i < f.getReturns().length; i++){
+            for (int i = 0; i < f.getReturns().length; i++) {
                 f.getReturns()[i].accept(this);
                 vetor_retornos[i] = stk.pop();
             }
 
             env.set(f.getFuncName(), new LocalEnv<SType>(f.getFuncName(), new TyFun(vetor_parametros, vetor_retornos)));
         }
-        for(Func f : d.getFuncList()){
+        for (Func f : d.getFuncList()) {
             f.accept(this);
         }
     }
 
     @Override
     public void visit(Func d) {
-         retChk = false;
-         temp = env.get(d.getFuncName());
-         for(TyBind p : d.getParams()){
-             p.getFirst().accept(this);
-             temp.set(p.getSecond(), stk.pop());
-         }
+        retChk = false;
+        temp = env.get(d.getFuncName());
+        for (TyBind p : d.getParams()) {
+            p.getFirst().accept(this);
+            temp.set(p.getSecond(), stk.pop());
+        }
         d.getBody().accept(this);
-        if(!retChk){
-            logError.add( d.getLine() + ", " + d.getColumn() + ": Função " + d.getFuncName() + " deve retornar algum valor.");
+        if (!retChk && d.getReturns().length > 0) {
+            logError.add(d.getLine() + ", " + d.getColumn() + ": Função " + d.getFuncName() + " deve retornar algum valor.");
         }
     }
 
@@ -97,9 +99,28 @@ public class TypeCheckVisitor extends NodeVisitor {
 
     }
 
-    private void typeArithmeticBinOp(SuperNode n, String OpName)
-    {
+    private void typeArithmeticBinOp(SuperNode n, String OpName) {
+        SType tyr = stk.pop();
+        SType tyl = stk.pop();
+        if ((tyr.match(tyInt))) {
+            if (tyl.match(tyInt) || tyl.match(tyFloat)) {
+                stk.push(tyl);
+            } else {
+                logError.add(n.getLine() + ", " + n.getColumn() + ": Operador" + OpName + "não se aplica aos tipos " + tyl.toString() + " e " + tyr.toString());
+                stk.push(tyErr);
+            }
 
+        } else if (tyr.match(tyFloat)) {
+            if (tyl.match(tyInt) || tyl.match(tyFloat)) {
+                stk.push(tyl);
+            } else {
+                logError.add(n.getLine() + ", " + n.getColumn() + ": Operador " + OpName + " não se aplica aos tipos " + tyl.toString() + " e " + tyr.toString());
+                stk.push(tyErr);
+            }
+        } else {
+            logError.add(n.getLine() + ", " + n.getColumn() + ": Operador " + OpName + " não se aplica aos tipos " + tyl.toString() + " e " + tyr.toString());
+            stk.push(tyErr);
+        }
     }
 
     // ADD OK
@@ -142,11 +163,10 @@ public class TypeCheckVisitor extends NodeVisitor {
         SType tyr = stk.pop();
         SType tyl = stk.pop();
 
-        if(tyr.match(tyInt) && tyl.match(tyInt))
-        {
+        if (tyr.match(tyInt) && tyl.match(tyInt)) {
             stk.push(tyInt);
-        }else{
-            logError.add(e.getLine() + ", " + e.getColumn() + "Operador % não se aplica para "+ tyl.toString() + "e" + tyr.toString());
+        } else {
+            logError.add(e.getLine() + ", " + e.getColumn() + "Operador % não se aplica para " + tyl.toString() + "e" + tyr.toString());
             stk.push(tyErr);
         }
     }
@@ -159,11 +179,10 @@ public class TypeCheckVisitor extends NodeVisitor {
         SType tyr = stk.pop();
         SType tyl = stk.pop();
 
-        if(tyr.match(tyBool) && tyl.match(tyBool))
-        {
+        if (tyr.match(tyBool) && tyl.match(tyBool)) {
             stk.push(tyBool);
-        }else{
-            logError.add(e.getLine() + ", " + e.getColumn() + "Operador && não se aplica para "+ tyl.toString() + "e" + tyr.toString());
+        } else {
+            logError.add(e.getLine() + ", " + e.getColumn() + "Operador && não se aplica para " + tyl.toString() + "e" + tyr.toString());
             stk.push(tyErr);
         }
     }
@@ -172,12 +191,12 @@ public class TypeCheckVisitor extends NodeVisitor {
     @Override
     public void visit(Not e) {
         e.getExpr().accept(this);
-        SType tyr = stk.pop();;
+        SType tyr = stk.pop();
+        ;
 
-        if(tyr.match(tyBool))
-        {
+        if (tyr.match(tyBool)) {
             stk.push(tyBool);
-        }else{
+        } else {
             logError.add(e.getLine() + ", " + e.getColumn() + "Operador ! não se aplica para " + tyr.toString());
             stk.push(tyErr);
         }
@@ -191,11 +210,10 @@ public class TypeCheckVisitor extends NodeVisitor {
         SType tyr = stk.pop();
         SType tyl = stk.pop();
 
-        if((tyr.match(tyInt) || tyr.match(tyFloat)) && (tyl.match(tyInt) || tyr.match(tyFloat)))
-        {
+        if ((tyr.match(tyInt) || tyr.match(tyFloat)) && (tyl.match(tyInt) || tyr.match(tyFloat))) {
             stk.push(tyBool);
-        }else{
-            logError.add(e.getLine() + ", " + e.getColumn() + "Operador < não se aplica para "+ tyl.toString() + "e" + tyr.toString());
+        } else {
+            logError.add(e.getLine() + ", " + e.getColumn() + "Operador == não se aplica para " + tyl.toString() + "e" + tyr.toString());
             stk.push(tyErr);
         }
     }
@@ -208,11 +226,10 @@ public class TypeCheckVisitor extends NodeVisitor {
         SType tyr = stk.pop();
         SType tyl = stk.pop();
 
-        if((tyr.match(tyInt) || tyr.match(tyFloat)) && (tyl.match(tyInt) || tyr.match(tyFloat)))
-        {
+        if ((tyr.match(tyInt) || tyr.match(tyFloat)) && (tyl.match(tyInt) || tyr.match(tyFloat))) {
             stk.push(tyBool);
-        }else{
-            logError.add(e.getLine() + ", " + e.getColumn() + "Operador < não se aplica para "+ tyl.toString() + "e" + tyr.toString());
+        } else {
+            logError.add(e.getLine() + ", " + e.getColumn() + "Operador < não se aplica para " + tyl.toString() + "e" + tyr.toString());
             stk.push(tyErr);
         }
     }
@@ -232,11 +249,25 @@ public class TypeCheckVisitor extends NodeVisitor {
 
     }
 
-    public void visit(NullLit e){ stk.push( tyVoid ); }
-    public void visit(BoolLit e){ stk.push( tyBool ); }
-    public void visit(IntLit e){  stk.push( tyInt ); }
-    public void visit(CharLit e){ stk.push( tyChar ); }
-    public void visit(FloatLit e){ stk.push( tyFloat ); }
+    public void visit(NullLit e) {
+        stk.push(tyVoid);
+    }
+
+    public void visit(BoolLit e) {
+        stk.push(tyBool);
+    }
+
+    public void visit(IntLit e) {
+        stk.push(tyInt);
+    }
+
+    public void visit(CharLit e) {
+        stk.push(tyChar);
+    }
+
+    public void visit(FloatLit e) {
+        stk.push(tyFloat);
+    }
 
     @Override
     public void visit(Instanciate e) {
@@ -247,22 +278,22 @@ public class TypeCheckVisitor extends NodeVisitor {
     @Override
     public void visit(Var e) {
         SType t = temp.get(e.getVarName());
-        if(t!= null) {/*
-            for(Expr r : e.get ????? )
-                if(t instanceof TyArr){
-                    t = ((TyArr) t).getTyArg();
-                }else{
-                    t = tyErr;
-                }
-            }
-            */
+        if (t != null) {
+//            for(Expr r : e.getVarName() )
+//                if(t instanceof TyArr){
+//                    t = ((TyArr) t).getTyArg();
+//                }else{
+//                    t = tyErr;
+//                }
+//            }
+
             if (t == tyErr) {
                 logError.add(e.getLine() + ", " + e.getColumn() + ": Atribuição incompatível: " + e.getVarName());
                 // NÃO TEM PUSH TYERR???
             }
             stk.push(t);
 
-        }else{
+        } else {
             logError.add(e.getLine() + ", " + e.getColumn() + ": Variável não declarada: " + e.getVarName());
             stk.push(tyErr);
         }
@@ -288,17 +319,19 @@ public class TypeCheckVisitor extends NodeVisitor {
 
     @Override
     public void visit(Iterate c) {
-
+        c.getCondition().accept(this);
+        SType pilha = stk.pop();
+        if(!(pilha instanceof TyInt)) logError.add(c.getLine() + ", " + c.getColumn() + " : Iterate funciona somente com tipo Int, tipo fornecido foi " + pilha);
     }
 
     // WHILE OK
     @Override
     public void visit(While c) {
         c.getCondition().accept(this);
-        if(stk.pop().match(tyBool)){
+        if (stk.pop().match(tyBool)) {
             c.getBody().accept(this);
-        }else{
-            logError.add( c.getLine() + ", " + c.getColumn() + ": Expressão de teste do WHILE deve ter tipo Bool");
+        } else {
+            logError.add(c.getLine() + ", " + c.getColumn() + ": Expressão de teste do WHILE deve ter tipo Bool");
         }
     }
 
@@ -308,25 +341,25 @@ public class TypeCheckVisitor extends NodeVisitor {
         boolean rt, re;
         re = true;
         c.getCondition().accept(this);
-        if(stk.pop().match(tyBool)){
+        if (stk.pop().match(tyBool)) {
             retChk = false;
             c.getThenBody().accept(this);
             rt = retChk;
-            if(c.getElseBody() != null)
-            {
+            if (c.getElseBody() != null) {
                 retChk = false;
                 c.getElseBody().accept(this);
                 re = retChk;
             }
             retChk = rt && re;
-        }else{
-            logError.add( c.getLine() + ", " + c.getColumn() + ": Expressão de teste do IF deve ter tipo Bool");
+        } else {
+            logError.add(c.getLine() + ", " + c.getColumn() + ": Expressão de teste do IF deve ter tipo Bool");
         }
     }
 
     @Override
     public void visit(Seq c) {
-
+        c.getLeft().accept(this);
+        c.getRight().accept(this);
     }
 
     // FUDEU
@@ -354,12 +387,19 @@ public class TypeCheckVisitor extends NodeVisitor {
 
     @Override
     public void visit(Return c) {
-        c.getExpr().accept(this);
-        if(temp.getFuncType() instanceof TyFun){
-            SType[] t = ((TyFun)temp.getFuncType()).getTypes();
-            t[t.length-1].match(stk.pop());
-        }
-        else{
+        for (Expr e : c.getExpr()) e.accept(this);
+
+        if (temp.getFuncType() instanceof TyFun) {
+            SType[] t = ((TyFun) temp.getFuncType()).getReturns();
+
+            for (int i = t.length - 1; i >= 0; i--) {
+                SType pilha = stk.pop();
+                if (!t[i].match(pilha)) {
+                    logError.add(c.getLine() + ", " + c.getColumn() + " : Tipo de retorno incompativel, esperado: " + t[i]+ ", atual: " + pilha);
+                }
+            }
+
+        } else {
             stk.pop().match(temp.getFuncType());
         }
         retChk = true;

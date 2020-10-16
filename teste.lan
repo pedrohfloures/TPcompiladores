@@ -1,11 +1,11 @@
-oi(a :: Int, b :: Int) : Int{
-print a+b;
+oi(a :: Int, b :: Int) : Int, Int{
+    return 10, 5;
 }
 
 main(){
    nlines = 5;
    i = nlines;
-   iterate(nlines){
+   iterate(true){
      iterate(i){ print '*';}
      i = i - 1;
      print '\n';

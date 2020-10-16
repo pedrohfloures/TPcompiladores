@@ -76,7 +76,16 @@ public class LangCompiler {
                 result.accept(iv);
                 ((JavaOutput) iv).print();
             } else if(args[0].equals("-type")){
-                result.accept(new TypeCheckVisitor());
+
+                TypeCheckVisitor tcv = new TypeCheckVisitor();
+                result.accept(tcv);
+                System.out.println("Verificação de tipo completa!");
+                System.out.println("Quantidade de erros: " + tcv.getNumErrors());
+                if(tcv.getNumErrors() > 0) {
+                    System.out.println("==== Descrição dos erros ====");
+                    tcv.printErrors();
+                }
+
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -85,8 +85,8 @@ TyId      = {UpperLetter} ({LowerLetter} | {UpperLetter} | [:digit:])*
         "Char"        { return newToken(Terminals.TYCHAR, yytext());    }
         "data"        { return newToken(Terminals.DATA,yytext());    }
         "Void"        { return newToken(Terminals.TYVOID, yytext());   }
-        "T"           { return newToken(Terminals.TRUE, yytext());   }
-        "F"           { return newToken(Terminals.FALSE, yytext());  }
+        "true"           { return newToken(Terminals.TRUE, yytext());   }
+        "false"           { return newToken(Terminals.FALSE, yytext());  }
         "NULL"        { return newToken(Terminals.NULL, yytext());  }
         "::"          { return newToken(Terminals.TYBIND, yytext()); }
         \'            { c = '\0'; yybegin(CHAR);       }
