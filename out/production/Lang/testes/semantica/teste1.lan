@@ -1,0 +1,20 @@
+
+main(){
+    n = 13;
+    q = 5;
+    divMod(n,q)<: quo,res :>;
+    
+    print 'Q';
+    print ':';
+    print quo;
+    print '\n';
+    
+    print 'R';
+    print ':';
+    print res;
+    print '\n';
+}
+
+divMod(n :: Int, q :: Int ) : Int, Int{
+    return n / q, n % q;
+}

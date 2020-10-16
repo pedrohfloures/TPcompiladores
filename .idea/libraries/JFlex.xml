@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="JFlex">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lang/parser/JFlex.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lang/parser/beaver-cc-0.9.11.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

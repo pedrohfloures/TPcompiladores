@@ -1,0 +1,190 @@
+%package "lang.parser";
+
+%import "lang.ast.*";
+%import "lang.ast.expr.*";
+%import "lang.ast.cmd.*";
+%import "lang.ast.decls.*";
+%import "lang.ast.types.*";
+%import "java.util.ArrayList";
+%import "java.io.IOException";
+
+%class "LangParser";
+
+%terminals RPAREN, LPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET, SEMI, DOT, COMMA, COLON, RTL, RTR,
+           TYINT, TYCHAR, TYFLOAT, TYBOOL, TYCHAR, TYVOID, TYBIND, TYID,  
+           DATA, 
+           ID,TRUE, FALSE, INT, FLOAT, CHAR, NULL, NEW,
+           PLUS, SUB, MULT, DIV, MOD, AND, NOT, EQ, NEQ, LT, 
+           ATTR, IF,ELSE, ITERATE ,WHILE, PRINT, READ, RETURN;
+
+
+%embed{:
+    private boolean tainted = false;
+    
+    public boolean isTainted(){ return tainted;}
+    
+    protected void recoverFromError(Symbol token, TokenStream in) throws IOException, Parser.Exception{
+        super.recoverFromError(token,in);
+        tainted = true;
+    }
+:};
+           
+%right NOT;
+%left  AND; 
+%left MULT, DIV, MOD;
+%left PLUS, SUB;
+%left EQ, NEQ;
+%nonassoc LT;
+
+
+%typeof program = "Program";
+%typeof functionDec = "Func";
+
+
+%typeof ID = "String";
+%typeof TYID = "String";
+
+%typeof expr = "Expr";
+%typeof rexpr = "Expr";
+%typeof mexpr = "Expr";
+%typeof aexpr = "Expr";
+%typeof sexpr = "Expr";
+%typeof index = "Expr";
+%typeof location = "Location";
+
+%typeof CHAR =  "Character";
+%typeof INT = "Integer";
+%typeof FLOAT = "Float";
+
+%typeof stmt  = "Cmd";
+%typeof cmd   = "Cmd";
+%typeof block = "Cmd";
+%typeof commandList = "Cmd";
+%typeof stmtBlock= "Cmd";
+
+%typeof type = "SType";
+%typeof baseType = "SType";
+%typeof varDec = "TyBind";
+%typeof field = "Field";
+%typeof dataDec = "Data";
+
+
+%goal program;
+
+program = dataDec.dats* functionDec.decs*       {: return new Program(dats, decs);  :}
+        ;
+        
+dataDec = DATA TYID.n  LBRACE field.f* RBRACE   {: return new Data(new TyID(n),f); :}
+        ;
+        
+field = ID.v TYBIND TYID.t SEMI   {:  return new Field(v,new TyID(t)); :}
+      ;
+        
+functionDec = ID.n LPAREN RPAREN  block.b                                 {:return new Func(new SType[0], n, new TyBind[0], b); :}
+            | ID.n LPAREN RPAREN  block.b COLON  tyList.l                 {:return new Func(l, n, new TyBind[0], b);            :}
+            | ID.n LPAREN varDecList.p RPAREN  block.b                    {:return new Func(new SType[0], n, p, b);           :}
+            | ID.n LPAREN varDecList.p RPAREN COLON  tyList.l  block.b    {:return new Func(l, n, p, b);                      :}
+            ;
+  
+
+tyList = tyList COMMA type 
+       | type
+       ;
+  
+block = LBRACE commandList.c RBRACE  {: return c;  :}
+      ;
+      
+stmtBlock = block.b           {: return b;  :}
+          | cmd.c             {: return c; :}
+          ;      
+      
+varDecList = varDecList COMMA varDec
+           | varDec                         
+           ;
+ 
+varDec =  ID.i TYBIND type.t          {:  return new TyBind(t,i); :}
+       ;
+
+commandList = cmd.c commandList.l    {: return new Seq(c,l);   :}           
+            | cmd.c                  {: return c;              :}
+            ; 
+
+cmd = location.v ATTR expr.e SEMI                           {: return new Attr(v,e);   :}
+    | PRINT expr.e    SEMI                                  {: return new Print(e);    :}
+    | READ location.l SEMI                                  {: return new Read(l);     :}
+    | RETURN argList.r SEMI                                 {: return new Return(r);   :}
+    | ID.v LPAREN argList.c? RPAREN  RTL retList.l RTR SEMI {: return new CallCmd(v,c,l);:}
+    | ID.v LPAREN argList.c? RPAREN  SEMI                   {: return new CallCmd(v,c,new Location[0]); :}
+    | stmt.s                                                {: return s;               :}  
+    ;
+
+
+stmt = WHILE LPAREN expr.e RPAREN stmtBlock.c               {: return new While(e,c);   :}        
+     | ITERATE LPAREN expr.e RPAREN stmtBlock.c             {: return new Iterate(e,c); :}
+     | IF LPAREN expr.e RPAREN stmtBlock.c                  {: return new If(e,c,null); :}
+     | IF LPAREN expr.e RPAREN stmtBlock.c ELSE stmtBlock.d {: return new If(e,c,d);    :}
+     ;
+
+     
+expr = expr.a AND expr.b               {: return new And(a ,b); :}
+     | rexpr.e                         {: return e;             :}  
+     ;
+     
+
+rexpr = aexpr.a LT aexpr.b             {: return new Lt(a,b); :}
+      | rexpr.a EQ aexpr.b             {: return new Eq(a,b); :}
+      | rexpr.a NEQ aexpr.b            {: return new Eq(a,b); :}
+      | aexpr
+      ;    
+      
+aexpr = aexpr.a PLUS mexpr.b           {: return new Add(a ,b);  :}
+      | aexpr.a SUB mexpr.b            {: return new Sub(a ,b);  :}
+      | mexpr.m                        {: return m; :}
+      ;
+      
+mexpr = mexpr.a MULT sexpr.b           {: return new Mult(a ,b);  :}
+      | mexpr.a DIV  sexpr.b           {: return new Div(a ,b);   :}
+      | mexpr.a MOD  sexpr.b           {: return new Mod(a ,b);   :}
+      | sexpr.s                        {: return s; :}
+      ;
+      
+sexpr = NOT expr.a                                 {: return new Not(a);          :}
+     | TRUE                                        {: return new BoolLit(true);   :}
+     | FALSE                                       {: return new BoolLit(false);  :}
+     | CHAR.s                                      {: return new CharLit(s);      :}
+     | INT.i                                       {: return new IntLit(i);       :}
+     | FLOAT.f                                     {: return new FloatLit(f);     :}
+     | NULL                                        {: return new NullLit();       :}
+     | ID.v LPAREN argList.c? RPAREN  index.e      {: return new Call(v, c, e);   :}
+     | location.v                                  {: return v;                   :}
+     | NEW type.t index.i?                         {: return new Instanciate(t,i);:}
+     | LPAREN expr.e RPAREN                        {: return e;                   :}  
+     ;
+
+location = ID.v                                 {: return new Location(null,new Var(v));  :}
+       | location.b DOT ID.v                    {: return new Location(b,new Var(v));     :}
+       | location.b LBRACKET expr.idx RBRACKET  {: return new Location(b,new Index(idx)); :}
+       ;
+       
+index = LBRACKET expr.idx RBRACKET   {: return idx; :}
+    ;
+
+argList = expr
+        | argList COMMA expr
+        ;
+                
+retList = location.v
+        | retList COMMA location.v
+        ;        
+        
+baseType = TYBOOL      {: return new TyBool();  :}
+         | TYINT       {: return new TyInt();   :}
+         | TYCHAR      {: return new TyChar();  :}
+         | TYFLOAT     {: return new TyFloat(); :}
+         | TYVOID      {: return new TyVoid();  :}
+         | TYID.s      {: return new TyID(s);   :}
+         ;
+    
+type = baseType.t                {: return t;            :}
+     | type.t LBRACKET RBRACKET  {: return new TyArr(t); :}
+     ;

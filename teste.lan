@@ -1,0 +1,13 @@
+oi(a :: Int, b :: Int) : Int{
+print a+b;
+}
+
+main(){
+   nlines = 5;
+   i = nlines;
+   iterate(nlines){
+     iterate(i){ print '*';}
+     i = i - 1;
+     print '\n';
+   }
+}
